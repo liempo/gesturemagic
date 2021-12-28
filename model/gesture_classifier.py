@@ -1,3 +1,5 @@
+from enum import Enum
+
 import numpy as np
 import tensorflow as tf
 
@@ -18,4 +20,14 @@ class GestureClassifier(object):
         output_details_tensor_index = self.output_details[0]['index']
         result = self.interpreter.get_tensor(output_details_tensor_index)
         result_index = np.argmax(np.squeeze(result))
-        return result_index
+        return Gesture(result_index)
+
+class Gesture(Enum):
+
+    OPEN = 0
+    CLOSED = 1
+    POINTING = 2
+    SMOKE = 3
+
+    def __str__(self):
+        return self.name

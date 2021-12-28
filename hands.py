@@ -1,58 +1,64 @@
 import time
-import math
-import cv2
+import itertools
+
+import cv2 as cv
 import mediapipe as mp
-mp_drawing = mp.solutions.drawing_utils
-mp_drawing_styles = mp.solutions.drawing_styles
-mp_hands = mp.solutions.hands
 
-# Debugging 
-font = cv2.FONT_HERSHEY_COMPLEX_SMALL
-prev_frame_time = 0
-new_frame_time = 0
-debug_msg = \
-  "FPS: {:.0f} " + \
-  "Distance to camera: {:.2f}"
-status_msg = "No hand detected"
+from model.gesture_classifier import \
+  GestureClassifier
 
-# Gesture detection
-distance_to_camera = 0
+def main(): 
+  # Initialize mediapipe 
+  mp_drawing = mp.solutions.drawing_utils
+  mp_drawing_styles = mp.solutions.drawing_styles
+  mp_hands = mp.solutions.hands
+  hands = mp_hands.Hands(
+      model_complexity=0,
+      max_num_hands=1,
+      min_detection_confidence=0.85,
+      min_tracking_confidence=0.75)
 
-# Capture from webcam input
-cap = cv2.VideoCapture(0)
+  # Create debugging utilities
+  prev_frame_time = 0
+  new_frame_time = 0
+  debug_msg = "FPS: {:.0f}"
+  status_msg = "Gesture: {}"
+  font = cv.FONT_HERSHEY_COMPLEX_SMALL
 
-with mp_hands.Hands(
-    model_complexity=0,
-    max_num_hands=1,
-    min_detection_confidence=0.95,
-    min_tracking_confidence=0.85) as hands:
+  # Create gesture classifier
+  classify = GestureClassifier()
+  gesture = None
+
+  # OpenCV start video capture
+  cap = cv.VideoCapture(0)
+  cap.set(cv.CAP_PROP_FRAME_WIDTH, 1280)
+  cap.set(cv.CAP_PROP_FRAME_HEIGHT, 720)
+
   while cap.isOpened():
     success, image = cap.read()
-    height, width, channels = image.shape
 
     if not success:
       print("Ignoring empty camera frame.")
       # If loading a video, use 'break' instead of 'continue'.
       continue
+    
+    image_height, image_width, _ = image.shape
 
-    # To improve performance, optionally mark the image as not writeable to
-    # pass by reference.
+    # Disable writeable to improve performance
     image.flags.writeable = False
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
     results = hands.process(image)
 
     # Draw the hand annotations on the image.
     image.flags.writeable = True
-    image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+    image = cv.cvtColor(image, cv.COLOR_RGB2BGR)
     if results.multi_hand_landmarks:
       for hand_landmarks in results.multi_hand_landmarks:
 
-        # Compute the distance between each fingers to determine if hand is open or closed
-        wrist = hand_landmarks.landmark[mp_hands.HandLandmark.WRIST]
-        pinky = hand_landmarks.landmark[mp_hands.HandLandmark.PINKY_TIP]
-        distance_to_camera = math.sqrt( (wrist.x - pinky.x) ** 2 + (wrist.y - pinky.y) ** 2 )
-
-        # Draw handlandmarks
+        preprocessed_landmarks = preprocess_landmarks(
+          hand_landmarks, image_width, image_height)
+        gesture = classify(preprocessed_landmarks)
+        
         mp_drawing.draw_landmarks(
             image,
             hand_landmarks,
@@ -66,14 +72,54 @@ with mp_hands.Hands(
     prev_frame_time = new_frame_time
 
     # Final processing of frame
-    image_flipped = cv2.flip(image, 1)
-    image_flipped = cv2.putText(
-      image_flipped, debug_msg.format(fps, distance_to_camera),
-      (0, height - 12), font, 1, (255, 255, 255), 1, cv2.LINE_AA)
+    image_flipped = cv.flip(image, 1)
+    image_flipped = cv.putText(
+      image_flipped, debug_msg.format(fps),
+      (0, image_height - 12), font, 0.5,
+      (255, 255, 255), 1, cv.LINE_AA)
+    image_flipped = cv.putText(
+      image_flipped, status_msg.format(gesture),
+       (0, 24), font, 1.5,
+      (255, 255, 255), 1, cv.LINE_AA)
     
     # Flip the image horizontally for a selfie-view display.
-    cv2.imshow('Hands', image_flipped)
-    if cv2.waitKey(5) & 0xFF == 27:
+    cv.imshow('Hands', image_flipped)
+    if cv.waitKey(5) & 0xFF == 27:
       break
 
-cap.release()
+  cap.release()
+
+def preprocess_landmarks(landmarks, image_width, image_height):
+  # Transofrm landmark into absolute points 
+  absolute_points = []
+  for landmark in landmarks.landmark:
+    x = min(int(landmark.x * image_width), image_width - 1)
+    y = min(int(landmark.y * image_height), image_height - 1)
+    absolute_points.append([x, y])
+  
+  if len(absolute_points) == 0:
+    return absolute_points
+
+  # Transform absolute points into relative points
+  relative_points = []
+  base_x, base_y = 0, 0
+  for index, point in enumerate(absolute_points):
+    if index == 0:
+      base_x, base_y = point[0], point[1]
+    x = point[0] - base_x
+    y = point[1] - base_y
+    relative_points.append([x, y])
+  
+  # Convert to a one-dimensional list
+  points = list(itertools.chain.from_iterable(relative_points))
+
+  # Normalize the values
+  max_value = max(list(map(abs, points)))
+  def _normalize(n):
+    return n / max_value
+  points = list(map(_normalize, points))
+
+  return points
+
+if __name__ == "__main__":
+  main()
