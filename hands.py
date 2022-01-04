@@ -3,9 +3,11 @@ import itertools
 
 import cv2 as cv
 import mediapipe as mp
+import pyautogui
+
 
 from model.gesture_classifier import \
-  GestureClassifier
+  Gesture, GestureClassifier
 
 def main(): 
   # Initialize mediapipe 
@@ -59,6 +61,12 @@ def main():
           hand_landmarks, image_width, image_height)
         gesture = classify(preprocessed_landmarks)
         #TO DO
+
+        if gesture == Gesture.OPEN:
+          pyautogui.hotkey("ctrlleft", "c")
+        elif gesture == Gesture.CLOSED:
+          pyautogui.hotkey("ctrlleft", "v")
+
         mp_drawing.draw_landmarks(
             image,
             hand_landmarks,
