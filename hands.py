@@ -58,7 +58,7 @@ def main():
         preprocessed_landmarks = preprocess_landmarks(
           hand_landmarks, image_width, image_height)
         gesture = classify(preprocessed_landmarks)
-        
+        #TO DO
         mp_drawing.draw_landmarks(
             image,
             hand_landmarks,

@@ -27,7 +27,7 @@ class Gesture(Enum):
     OPEN = 0
     CLOSED = 1
     POINTING = 2
-    SMOKE = 3
+    OKAY = 3
 
     def __str__(self):
         return self.name
