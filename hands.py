@@ -36,6 +36,8 @@ def main():
   cap.set(cv.CAP_PROP_FRAME_WIDTH, 1280)
   cap.set(cv.CAP_PROP_FRAME_HEIGHT, 720)
 
+  last_gesture_recognize = None
+
   while cap.isOpened():
     success, image = cap.read()
 
@@ -60,12 +62,16 @@ def main():
         preprocessed_landmarks = preprocess_landmarks(
           hand_landmarks, image_width, image_height)
         gesture = classify(preprocessed_landmarks)
-        #TO DO
-
-        if gesture == Gesture.OPEN:
-          pyautogui.hotkey("ctrlleft", "c")
-        elif gesture == Gesture.CLOSED:
-          pyautogui.hotkey("ctrlleft", "v")
+        
+        #Shortcut hotkeys
+        if gesture != last_gesture_recognize:
+          last_gesture_recognize = gesture
+          if gesture == Gesture.OPEN:
+            pyautogui.hotkey("ctrlleft", "c")
+          elif gesture == Gesture.CLOSED:
+            pyautogui.hotkey("ctrlleft", "v")
+          elif gesture == Gesture.OKAY:
+            pyautogui.hotkey("ctrlleft", "x")   
 
         mp_drawing.draw_landmarks(
             image,
