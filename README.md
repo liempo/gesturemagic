@@ -18,8 +18,14 @@
  - requirements.txt – List of dependencies to be installed
 
 ## How to Run
- - Activate virtual env `source env/bin/activate`
- - Run the main file `python hands.py`
+ 1. Activate virtual env 
+    ```
+    source env/bin/activate
+    ```
+ 2. Run the main file 
+    ```
+    python hands.py
+    ```
 
 ### About the Developer
 This complex program was developed by Alec Gonzales and James Lumawag, two of the great computer science students from Colegio De San Juan De Letran.
